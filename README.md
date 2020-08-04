@@ -415,6 +415,10 @@ Determines whether video audio should override background music/audio in Android
 
 Platforms: Android Exoplayer
 
+### DRM
+
+To setup DRM please follow [this guide](./docs/DRM.md)
+
 #### filter
 Add video filter
 * **FilterType.NONE (default)** - No Filter
