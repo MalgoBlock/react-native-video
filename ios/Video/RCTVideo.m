@@ -3,8 +3,13 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
 #import <React/UIView+React.h>
+@import GoogleInteractiveMediaAds;
 #include <MediaAccessibility/MediaAccessibility.h>
 #include <AVFoundation/AVFoundation.h>
+
+@interface RCTVideo () <IMAAdsLoaderDelegate, IMAAdsManagerDelegate>
+
+@end
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath = @"playbackLikelyToKeepUp";
@@ -84,6 +89,12 @@ static int const RCTVideoUnset = -1;
   NSString *_filterName;
   BOOL _filterEnabled;
   UIViewController * _presentingViewController;
+
+  /* Ads Loader */
+  IMAAdsLoader * _adsLoader;
+  IMAAVPlayerContentPlayhead * _contentPlayhead;
+  IMAAdsManager * _adsManager;
+
 #if __has_include(<react-native-video/RCTVideoCache.h>)
   RCTVideoCache * _videoCache;
 #endif
@@ -126,6 +137,7 @@ static int const RCTVideoUnset = -1;
 #if __has_include(<react-native-video/RCTVideoCache.h>)
     _videoCache = [RCTVideoCache sharedInstance];
 #endif
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applicationWillResignActive:)
                                                  name:UIApplicationWillResignActiveNotification
@@ -160,6 +172,86 @@ static int const RCTVideoUnset = -1;
   viewController.view.frame = self.bounds;
   viewController.player = player;
   return viewController;
+}
+
+- (void)requestAds:(NSString *) adTagUrl {
+    _adsLoader = [[IMAAdsLoader alloc] initWithSettings:nil];
+    _adsLoader.delegate = self;
+    
+    // Pass the main view as the container for ad display.
+    
+    // from: https://developers.google.com/interactive-media-ads/docs/sdks/ios/client-side#6_initialize_the_ads_loader_and_make_an_ads_request
+    IMAAdDisplayContainer *adDisplayContainer =
+          [[IMAAdDisplayContainer alloc] initWithAdContainer:self];
+//    IMAAdDisplayContainer *adDisplayContainer = [[IMAAdDisplayContainer alloc] initWithAdContainer:self companionSlots:nil];
+    // Create an ad request with our ad tag, display container, and optional user context.
+    IMAAdsRequest *request = [[IMAAdsRequest alloc] initWithAdTagUrl:adTagUrl
+                                                  adDisplayContainer:adDisplayContainer
+                                                     contentPlayhead:_contentPlayhead
+                                                         userContext:nil];
+    [_adsLoader requestAdsWithRequest:request];
+}
+
+- (void)adsLoader:(IMAAdsLoader *)loader adsLoadedWithData:(IMAAdsLoadedData *)adsLoadedData {
+    // Grab the instance of the IMAAdsManager and set ourselves as the delegate.
+    _adsManager = adsLoadedData.adsManager;
+    
+    _adsManager.delegate = self;
+    
+    // Create ads rendering settings and tell the SDK to use the in-app browser.
+    IMAAdsRenderingSettings *adsRenderingSettings = [[IMAAdsRenderingSettings alloc] init];
+    UIViewController *rootViewController = RCTPresentedViewController();
+    adsRenderingSettings.linkOpenerDelegate = rootViewController;
+    adsRenderingSettings.linkOpenerPresentingController = rootViewController;
+    
+    // Initialize the ads manager.
+    [_adsManager initializeWithAdsRenderingSettings:adsRenderingSettings];
+}
+
+- (void)adsLoader:(IMAAdsLoader *)loader failedWithErrorData:(IMAAdLoadingErrorData *)adErrorData {
+    // Something went wrong loading ads. Log the error and play the content.
+    NSLog(@"Error loading ads: %@", adErrorData.adError.message);
+    if (self.onAdError) {
+        self.onAdError(@{@"target": self.reactTag});
+    }
+    [_player play];
+}
+
+
+- (void)adsManager:(IMAAdsManager *)adsManager didReceiveAdEvent:(IMAAdEvent *)event {
+    if (event.type == kIMAAdEvent_LOADED && self.onAdsLoaded) {
+        self.onAdsLoaded(@{@"target": self.reactTag});
+    } else if (event.type == kIMAAdEvent_AD_BREAK_STARTED && self.onAdStarted) {
+        self.onAdStarted(@{@"target": self.reactTag});
+    } else if (event.type == kIMAAdEvent_ALL_ADS_COMPLETED && self.onAdsComplete) {
+        if (_adsManager) {
+            [_adsManager destroy];
+            _adsManager = nil;
+        }
+        self.onAdsComplete(@{@"target": self.reactTag});
+    }
+}
+
+- (void)startAds
+{
+    [_adsManager start];
+}
+
+- (void)adsManager:(IMAAdsManager *)adsManager didReceiveAdError:(IMAAdError *)error {
+    // Something went wrong with the ads manager after ads were loaded. Log the error and play the
+    // content.
+    NSLog(@"AdsManager error: %@", error.message);
+    [_player play];
+}
+
+- (void)adsManagerDidRequestContentPause:(IMAAdsManager *)adsManager {
+    // The SDK is going to play ads, so pause the content.
+    [_player pause];
+}
+
+- (void)adsManagerDidRequestContentResume:(IMAAdsManager *)adsManager {
+    // The SDK is done playing ads (at least for now), so resume the content.
+    [_player play];
 }
 
 /* ---------------------------------------------------------
@@ -246,6 +338,9 @@ static int const RCTVideoUnset = -1;
   if (_playInBackground) {
     [_playerLayer setPlayer:_player];
     [_playerViewController setPlayer:_player];
+  }
+  if (_adsManager) {
+    [_adsManager resume];
   }
 }
 
@@ -391,6 +486,9 @@ static int const RCTVideoUnset = -1;
       [self->_player addObserver:self forKeyPath:externalPlaybackActive options:0 context:nil];
       self->_isExternalPlaybackActiveObserverRegistered = YES;
       
+        
+      _contentPlayhead = [[IMAAVPlayerContentPlayhead alloc] initWithAVPlayer:self->_player];
+        
       [self addPlayerTimeObserver];
       if (@available(iOS 10.0, *)) {
         [self setAutomaticallyWaitsToMinimizeStalling:_automaticallyWaitsToMinimizeStalling];
@@ -1609,6 +1707,10 @@ static int const RCTVideoUnset = -1;
     _isExternalPlaybackActiveObserverRegistered = NO;
   }
   _player = nil;
+  if (_adsManager) {
+    [_adsManager destroy];
+    _adsManager = nil;
+  }
   
   [self removePlayerLayer];
   

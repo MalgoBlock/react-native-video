@@ -3,6 +3,7 @@ package com.brentvatne.exoplayer;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Handler;
@@ -72,6 +73,20 @@ import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.Util;
 
+import com.google.ads.interactivemedia.v3.api.AdDisplayContainer;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent.AdErrorListener;
+import com.google.ads.interactivemedia.v3.api.AdEvent;
+import com.google.ads.interactivemedia.v3.api.AdEvent.AdEventListener;
+import com.google.ads.interactivemedia.v3.api.AdsLoader;
+import com.google.ads.interactivemedia.v3.api.AdsLoader.AdsLoadedListener;
+import com.google.ads.interactivemedia.v3.api.AdsManager;
+import com.google.ads.interactivemedia.v3.api.AdsManagerLoadedEvent;
+import com.google.ads.interactivemedia.v3.api.AdsRequest;
+import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
+import com.google.ads.interactivemedia.v3.api.player.ContentProgressProvider;
+import com.google.ads.interactivemedia.v3.api.player.VideoProgressUpdate;
+
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -88,7 +103,9 @@ class ReactExoplayerView extends FrameLayout implements
         BecomingNoisyListener,
         AudioManager.OnAudioFocusChangeListener,
         MetadataOutput,
-        DrmSessionEventListener {
+        DrmSessionEventListener,
+        AdEventListener,
+        AdErrorListener {
 
     private static final String TAG = "ReactExoplayerView";
 
@@ -164,6 +181,12 @@ class ReactExoplayerView extends FrameLayout implements
     private final AudioManager audioManager;
     private final AudioBecomingNoisyReceiver audioBecomingNoisyReceiver;
 
+    // IMA
+    private ImaSdkFactory mSdkFactory;
+    private AdsLoader mAdsLoader;
+    private AdsManager mAdsManager;
+    private boolean mIsAdDisplayed;
+
     private final Handler progressHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -206,7 +229,6 @@ class ReactExoplayerView extends FrameLayout implements
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
     }
 
-
     @Override
     public void setId(int id) {
         super.setId(id);
@@ -244,6 +266,10 @@ class ReactExoplayerView extends FrameLayout implements
          * Leave this here in case it causes issues.
          */
         // stopPlayback();
+        if (mAdsManager != null) {
+            mAdsManager.destroy();
+            mAdsManager = null;
+        }
     }
 
     // LifecycleEventListener implementation
@@ -269,6 +295,22 @@ class ReactExoplayerView extends FrameLayout implements
     public void onHostDestroy() {
         stopPlayback();
     }
+
+    @Override
+    public void requestLayout() {
+        super.requestLayout();
+        post(measureAndLayout);
+    }
+
+    private final Runnable measureAndLayout = new Runnable() {
+        @Override
+        public void run() {
+            measure(
+                    MeasureSpec.makeMeasureSpec(getWidth(), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(getHeight(), MeasureSpec.EXACTLY));
+            layout(getLeft(), getTop(), getRight(), getBottom());
+        }
+    };
 
     public void cleanUpResources() {
         stopPlayback();
@@ -492,6 +534,52 @@ class ReactExoplayerView extends FrameLayout implements
         }
         return new DefaultDrmSessionManager(uuid,
                 FrameworkMediaDrm.newInstance(uuid), drmCallback, null, false, 3);
+    }
+
+        private void initializeAds() {
+        // Create an AdsLoader.
+        mSdkFactory = ImaSdkFactory.getInstance();
+        mAdsLoader = mSdkFactory.createAdsLoader(this.getContext());
+        // Add listeners for when ads are loaded and for errors.
+        mAdsLoader.addAdErrorListener(this);
+        mAdsLoader.addAdsLoadedListener(new AdsLoadedListener() {
+            @Override
+            public void onAdsManagerLoaded(AdsManagerLoadedEvent adsManagerLoadedEvent) {
+                // Ads were successfully loaded, so get the AdsManager instance. AdsManager has
+                // events for ad playback and errors.
+                mAdsManager = adsManagerLoadedEvent.getAdsManager();
+
+                // Attach event and error event listeners.
+                mAdsManager.addAdErrorListener(ReactExoplayerView.this);
+                mAdsManager.addAdEventListener(ReactExoplayerView.this);
+                mAdsManager.init();
+            }
+        });
+    }
+
+    public void requestAds(String adTagUrl) {
+        initializeAds();
+        Log.i("IMA","Ad Tag URL: " + adTagUrl);
+        AdDisplayContainer adDisplayContainer = mSdkFactory.createAdDisplayContainer();
+        adDisplayContainer.setAdContainer(exoPlayerView);
+
+        // Create the ads request.
+        AdsRequest request = mSdkFactory.createAdsRequest();
+        request.setAdTagUrl(adTagUrl);
+        request.setAdDisplayContainer(adDisplayContainer);
+        request.setContentProgressProvider(new ContentProgressProvider() {
+            @Override
+            public VideoProgressUpdate getContentProgress() {
+                if (mIsAdDisplayed || player == null || player.getDuration() <= 0) {
+                    return VideoProgressUpdate.VIDEO_TIME_NOT_READY;
+                }
+                return new VideoProgressUpdate(player.getCurrentPosition(),
+                        player.getDuration());
+            }
+        });
+
+        // Request the ad. After the ad is loaded, onAdsManagerLoaded() will be called.
+        mAdsLoader.requestAds(request);
     }
 
     private MediaSource buildMediaSource(Uri uri, String overrideExtension, DrmSessionManager drmSessionManager) {
@@ -886,6 +974,9 @@ class ReactExoplayerView extends FrameLayout implements
             eventEmitter.buffering(true);
         } else {
             eventEmitter.buffering(false);
+            long pos = player.getCurrentPosition();
+            double bufferedDuration = player.getBufferedPercentage() * player.getDuration() / 100;
+            eventEmitter.progressChanged(pos, bufferedDuration, player.getDuration(), getPositionInFirstPeriodMsForCurrentWindow(pos));
         }
     }
 
@@ -1382,6 +1473,56 @@ class ReactExoplayerView extends FrameLayout implements
             if (indexOfPC != -1) {
                 removeViewAt(indexOfPC);
             }
+        }
+    }
+
+    public void startAds() {
+        mAdsManager.start();
+    }
+
+    @Override
+    public void onAdError(AdErrorEvent adErrorEvent) {
+        Log.e("IMA", "Ad Error: " + adErrorEvent.getError().getMessage());
+        eventEmitter.adError();
+        startPlayback();
+    }
+
+    @Override
+    public void onAdEvent(AdEvent adEvent) {
+        Log.i("IMA", "Event: " + adEvent.getType());
+
+        // These are the suggested event types to handle. For full list of all ad event
+        // types, see the documentation for AdEvent.AdEventType.
+        switch (adEvent.getType()) {
+            case LOADED:
+                // AdEventType.LOADED will be fired when ads are ready to be played.
+                // AdsManager.start() begins ad playback. This method is ignored for VMAP or
+                // ad rules playlists, as the SDK will automatically start executing the
+                // playlist.
+                eventEmitter.adsLoaded();
+                break;
+            case CONTENT_PAUSE_REQUESTED:
+                // AdEventType.CONTENT_PAUSE_REQUESTED is fired immediately before a video
+                // ad is played.
+                mIsAdDisplayed = true;
+                break;
+            case STARTED:
+                eventEmitter.adStarted();
+                break;
+            case CONTENT_RESUME_REQUESTED:
+                // AdEventType.CONTENT_RESUME_REQUESTED is fired when the ad is completed
+                // and you should start playing your content.
+                mIsAdDisplayed = false;
+                break;
+            case ALL_ADS_COMPLETED:
+                if (mAdsManager != null) {
+                    mAdsManager.destroy();
+                    mAdsManager = null;
+                }
+                eventEmitter.adsCompleted();
+                break;
+            default:
+                break;
         }
     }
 }

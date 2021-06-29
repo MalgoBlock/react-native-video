@@ -73,6 +73,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
     private ReactExoplayerConfig config;
 
+    private static final int REQUEST_ADS_COMMAND = 0;
+    private static final int START_ADS_COMMAND = 1;
+
     public ReactExoplayerViewManager(ReactExoplayerConfig config) {
         this.config = config;
     }
@@ -311,6 +314,21 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     @ReactProp(name = PROP_CONTROLS, defaultBoolean = false)
     public void setControls(final ReactExoplayerView videoView, final boolean controls) {
         videoView.setControls(controls);
+    }
+
+
+    @Override
+    public void receiveCommand(final ReactExoplayerView videoView, int commandId, @Nullable ReadableArray args) {
+        switch (commandId) {
+            case REQUEST_ADS_COMMAND:
+                videoView.requestAds(args.getString(0));
+                break;
+            case START_ADS_COMMAND:
+                videoView.startAds();
+                break;
+            default:
+                break;
+        }
     }
 
     @ReactProp(name = PROP_BUFFER_CONFIG)

@@ -43,6 +43,10 @@
 @property (nonatomic, copy) RCTDirectEventBlock onPictureInPictureStatusChanged;
 @property (nonatomic, copy) RCTDirectEventBlock onRestoreUserInterfaceForPictureInPictureStop;
 @property (nonatomic, copy) RCTDirectEventBlock onGetLicense;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdsLoaded;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdStarted;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdsComplete;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdError;
 
 typedef NS_ENUM(NSInteger, RCTVideoError) {
     RCTVideoErrorFromJSPart,
@@ -62,6 +66,9 @@ typedef NS_ENUM(NSInteger, RCTVideoError) {
 
 - (void)save:(NSDictionary *)options resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 - (void)setLicenseResult:(NSString * )license;
+
+- (void)requestAds:(NSString *)adTagUrl;
+- (void)startAds;
 - (BOOL)setLicenseResultError:(NSString * )error;
 
 @end

@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { StyleSheet, requireNativeComponent, NativeModules, View, ViewPropTypes, Image, Platform, findNodeHandle } from 'react-native';
+import { StyleSheet, requireNativeComponent, NativeModules, View, ViewPropTypes, Image, Platform, findNodeHandle, UIManager } from 'react-native';
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
 import TextTrackType from './TextTrackType';
 import FilterType from './FilterType';
@@ -23,6 +23,10 @@ export default class Video extends Component {
     this.state = {
       showPoster: !!props.poster,
     };
+  }
+
+  componentDidMount() {
+    this.videoHandle = findNodeHandle(this._root);
   }
 
   setNativeProps(nativeProps) {
@@ -82,6 +86,22 @@ export default class Video extends Component {
   restoreUserInterfaceForPictureInPictureStopCompleted = (restored) => {
     this.setNativeProps({ restoreUserInterfaceForPIPStopCompletionHandler: restored });
   };
+  
+  requestAds = (url) => {
+    if (Platform.OS === 'android') {
+      UIManager.dispatchViewManagerCommand(this.videoHandle, 0, [url]);
+    } else {
+      NativeModules.VideoManager.requestAds(url);
+    }
+  }
+
+  startAds = () => {
+    if (Platform.OS === 'android') {
+      UIManager.dispatchViewManagerCommand(this.videoHandle, 1, null);
+    } else {
+      NativeModules.VideoManager.startAds();
+    }
+  }
 
   _assignRoot = (component) => {
     this._root = component;
@@ -258,6 +278,28 @@ export default class Video extends Component {
       return NativeModules.UIManager[viewManagerName];
     }
     return NativeModules.UIManager.getViewManagerConfig(viewManagerName);
+  _onAdsComplete = (event) => {
+    if (this.props.onBuffer) {
+      this.props.onAdsComplete(event.nativeEvent);
+    }
+  };
+
+  _onAdError = (event) => {
+    if (this.props.onBuffer) {
+      this.props.onAdError(event.nativeEvent);
+    }
+  };
+
+  _onAdsLoaded = (event) => {
+    if (this.props.onBuffer) {
+      this.props.onAdsLoaded(event.nativeEvent);
+    }
+  };
+
+  _onAdStarted = (event) => {
+    if (this.props.onBuffer) {
+      this.props.onAdStarted(event.nativeEvent);
+    }
   };
 
   render() {
@@ -499,6 +541,10 @@ Video.propTypes = {
   onPictureInPictureStatusChanged: PropTypes.func,
   needsToRestoreUserInterfaceForPictureInPictureStop: PropTypes.func,
   onExternalPlaybackChange: PropTypes.func,
+  onAdError: PropTypes.func,
+  onAdsComplete: PropTypes.func,
+  onAdsLoaded: PropTypes.func,
+  onAdStarted: PropTypes.func,
 
   /* Required by react-native */
   scaleX: PropTypes.number,
