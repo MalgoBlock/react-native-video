@@ -182,7 +182,7 @@ static int const RCTVideoUnset = -1;
     
     // from: https://developers.google.com/interactive-media-ads/docs/sdks/ios/client-side#6_initialize_the_ads_loader_and_make_an_ads_request
     IMAAdDisplayContainer *adDisplayContainer =
-          [[IMAAdDisplayContainer alloc] initWithAdContainer:self];
+    [[IMAAdDisplayContainer alloc] initWithAdContainer:self viewController: _presentingViewController];
 //    IMAAdDisplayContainer *adDisplayContainer = [[IMAAdDisplayContainer alloc] initWithAdContainer:self companionSlots:nil];
     // Create an ad request with our ad tag, display container, and optional user context.
     IMAAdsRequest *request = [[IMAAdsRequest alloc] initWithAdTagUrl:adTagUrl
