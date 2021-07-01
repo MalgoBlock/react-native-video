@@ -260,6 +260,43 @@ export default class Video extends Component {
     return NativeModules.UIManager.getViewManagerConfig(viewManagerName);
   };
 
+  _onAdEvent = (event) => {
+    if (this.props.onAdEvent) {
+      this.props.onAdEvent(event.nativeEvent);
+    }
+  };
+
+  _onAdsComplete = (event) => {
+    if (this.props.onAdsComplete) {
+      this.props.onAdsComplete(event.nativeEvent);
+    }
+  };
+
+  _onAdError = (event) => {
+    if (this.props.onAdError) {
+      this.props.onAdError(event.nativeEvent);
+    }
+  };
+
+  _onAdsLoaded = (event) => {
+    if (this.props.onAdsLoaded) {
+      this.props.onAdsLoaded(event.nativeEvent);
+    }
+  };
+
+  _onAdStarted = (event) => {
+    if (this.props.onAdStarted) {
+      this.props.onAdStarted(event.nativeEvent);
+    }
+  };
+
+
+  _onAdInControl = (event) => {
+    if (this.props.onAdInControl) {
+      this.props.onAdInControl(event.nativeEvent);
+    }
+  };
+
   render() {
     const resizeMode = this.props.resizeMode;
     const source = resolveAssetSource(this.props.source) || {};
@@ -328,6 +365,12 @@ export default class Video extends Component {
       onGetLicense: nativeProps.drm && nativeProps.drm.getLicense && this._onGetLicense,
       onPictureInPictureStatusChanged: this._onPictureInPictureStatusChanged,
       onRestoreUserInterfaceForPictureInPictureStop: this._onRestoreUserInterfaceForPictureInPictureStop,
+      onAdStarted: this._onAdStarted,
+      onAdError: this._onAdError,
+      onAdsLoaded: this._onAdsLoaded,
+      onAdsComplete: this._onAdsComplete,
+      onAdEvent: this._onAdEvent,
+      onAdInControl: this._onAdInControl,
     });
 
     const posterStyle = {
@@ -499,6 +542,11 @@ Video.propTypes = {
   onPictureInPictureStatusChanged: PropTypes.func,
   needsToRestoreUserInterfaceForPictureInPictureStop: PropTypes.func,
   onExternalPlaybackChange: PropTypes.func,
+
+  onAdError: PropTypes.func,
+  onAdsComplete: PropTypes.func,
+  onAdsLoaded: PropTypes.func,
+  onAdStarted: PropTypes.func,
 
   /* Required by react-native */
   scaleX: PropTypes.number,

@@ -52,6 +52,14 @@
 /// Main point of interaction with the SDK. Created by the SDK as the result of an ad request.
 @property(nonatomic, strong) IMAAdsManager *adsManager;
 
+
+@property (nonatomic, copy) RCTBubblingEventBlock onAdsLoaded;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdStarted;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdsComplete;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdError;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdEvent;
+@property (nonatomic, copy) RCTBubblingEventBlock onAdInControl;
+
 typedef NS_ENUM(NSInteger, RCTVideoError) {
     RCTVideoErrorFromJSPart,
     RCTVideoErrorLicenseRequestNotOk,

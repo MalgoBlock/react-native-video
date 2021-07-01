@@ -225,6 +225,12 @@ static int const RCTVideoUnset = -1;
   [self removePlayerItemObservers];
   [_player removeObserver:self forKeyPath:playbackRate context:nil];
   [_player removeObserver:self forKeyPath:externalPlaybackActive context: nil];
+
+  // TODO: no enough to detect unmount etc
+  if (self.adsManager) {
+    [self.adsManager destroy];
+    self.adsManager = nil;
+  }
 }
 
 #pragma mark - App lifecycle handlers
@@ -286,7 +292,7 @@ static int const RCTVideoUnset = -1;
   const Float64 currentTimeSecs = CMTimeGetSeconds(currentTime);
   
   [[NSNotificationCenter defaultCenter] postNotificationName:@"RCTVideo_progress" object:nil userInfo:@{@"progress": [NSNumber numberWithDouble: currentTimeSecs / duration]}];
-  
+
   if( currentTimeSecs >= 0 && self.onVideoProgress) {
     if(!_isRequestAds && currentTimeSecs >= 0.0001) {
       [self requestAds];
@@ -778,9 +784,13 @@ static int const RCTVideoUnset = -1;
 }
 
 - (void)requestAds {
+  if( !_playerViewController )
+  {
+    [self usePlayerViewController];
+  }
   // Create an ad display container for ad rendering.
   IMAAdDisplayContainer *adDisplayContainer =
-      [[IMAAdDisplayContainer alloc] initWithAdContainer:self companionSlots:nil];
+      [[IMAAdDisplayContainer alloc] initWithAdContainer:self viewController: self.reactViewController];
   // Create an ad request with our ad tag, display container, and optional user context.
   IMAAdsRequest *request = [[IMAAdsRequest alloc] initWithAdTagUrl:_adTagUrl
                                                 adDisplayContainer:adDisplayContainer
@@ -800,7 +810,7 @@ static int const RCTVideoUnset = -1;
 
   // Create ads rendering settings and tell the SDK to use the in-app browser.
   IMAAdsRenderingSettings *adsRenderingSettings = [[IMAAdsRenderingSettings alloc] init];
-  adsRenderingSettings.webOpenerPresentingController = _playerViewController;
+  adsRenderingSettings.linkOpenerPresentingController = self.reactViewController;
 
   // Initialize the ads manager.
   [self.adsManager initializeWithAdsRenderingSettings:adsRenderingSettings];
@@ -809,7 +819,11 @@ static int const RCTVideoUnset = -1;
 - (void)adsLoader:(IMAAdsLoader *)loader failedWithErrorData:(IMAAdLoadingErrorData *)adErrorData {
   // Something went wrong loading ads. Log the error and play the content.
   NSLog(@"Error loading ads: %@", adErrorData.adError.message);
-  [_player play];
+  if (self.onAdError) {
+      self.onAdError(@{@"target": self.reactTag});
+  }
+  [self setPaused:false];
+  // [_player play];
 }
 
 #pragma mark AdsManager Delegates
@@ -819,23 +833,47 @@ static int const RCTVideoUnset = -1;
     // When the SDK notifies us that ads have been loaded, play them.
     [adsManager start];
   }
+  if(self.onAdEvent) {
+    self.onAdEvent(@{@"target": self.reactTag, @"type": event.typeString});
+  }
+  if (event.type == kIMAAdEvent_LOADED && self.onAdsLoaded) {
+        self.onAdsLoaded(@{@"target": self.reactTag});
+    } else if (event.type == kIMAAdEvent_STARTED && self.onAdStarted) {
+        self.onAdStarted(@{@"target": self.reactTag});
+    } else if (event.type == kIMAAdEvent_ALL_ADS_COMPLETED && self.onAdsComplete) {
+        // if (_adsManager) {
+        //     [_adsManager destroy];
+        //     _adsManager = nil;
+        // }
+        self.onAdsComplete(@{@"target": self.reactTag});
+    }
 }
 
 - (void)adsManager:(IMAAdsManager *)adsManager didReceiveAdError:(IMAAdError *)error {
   // Something went wrong with the ads manager after ads were loaded. Log the error and play the
   // content.
   NSLog(@"AdsManager error: %@", error.message);
-  [_player play];
+  self.onAdEvent(@{@"target": self.reactTag, @"type": @"error"});
+  // [_player play];
+  [self setPaused:false];
 }
 
 - (void)adsManagerDidRequestContentPause:(IMAAdsManager *)adsManager {
   // The SDK is going to play ads, so pause the content.
-  [_player pause];
+  // [_player pause];
+  if(self.onAdInControl) {
+    self.onAdInControl(@{@"target": self.reactTag, @"inControl": @true});
+  }
+  [self setPaused:true];
 }
 
 - (void)adsManagerDidRequestContentResume:(IMAAdsManager *)adsManager {
   // The SDK is done playing ads (at least for now), so resume the content.
-  [_player play];
+  // [_player play];
+  if(self.onAdInControl) {
+    self.onAdInControl(@{@"target": self.reactTag, @"inControl": @false});
+  }
+  [self setPaused:false];
 }
 
 - (void)attachListeners

@@ -116,6 +116,14 @@ RCT_REMAP_METHOD(setLicenseResultError,
 RCT_EXPORT_VIEW_PROPERTY(onPictureInPictureStatusChanged, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onRestoreUserInterfaceForPictureInPictureStop, RCTDirectEventBlock);
 
+RCT_EXPORT_VIEW_PROPERTY(onAdsLoaded, RCTBubblingEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onAdStarted, RCTBubblingEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onAdsComplete, RCTBubblingEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onAdError, RCTBubblingEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onAdEvent, RCTBubblingEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onAdInControl, RCTBubblingEventBlock);
+
+
 - (NSDictionary *)constantsToExport
 {
   return @{
