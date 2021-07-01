@@ -19,17 +19,20 @@ import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.video.VideoListener;
 import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.text.Cue;
 import com.google.android.exoplayer2.text.TextRenderer;
 import com.google.android.exoplayer2.text.TextOutput;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.SubtitleView;
+import com.google.android.exoplayer2.util.Assertions;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @TargetApi(16)
-public final class ExoPlayerView extends FrameLayout {
+public final class ExoPlayerView extends FrameLayout implements AdsLoader.AdViewProvider {
 
     private View surfaceView;
     private final View shutterView;
@@ -39,6 +42,7 @@ public final class ExoPlayerView extends FrameLayout {
     private SimpleExoPlayer player;
     private Context context;
     private ViewGroup.LayoutParams layoutParams;
+    private final FrameLayout adOverlayFrameLayout;
 
     private boolean useTextureView = true;
     private boolean hideShutterView = false;
@@ -83,7 +87,11 @@ public final class ExoPlayerView extends FrameLayout {
         layout.addView(shutterView, 1, layoutParams);
         layout.addView(subtitleLayout, 2, layoutParams);
 
+        adOverlayFrameLayout = new FrameLayout(context);
+
         addViewInLayout(layout, 0, aspectRatioParams);
+        addViewInLayout(adOverlayFrameLayout, 1, layoutParams);
+
     }
 
     private void clearVideoView() {
@@ -119,6 +127,28 @@ public final class ExoPlayerView extends FrameLayout {
 
     private void updateShutterViewVisibility() {
         shutterView.setVisibility(this.hideShutterView ? View.INVISIBLE : View.VISIBLE);
+    }
+
+    @Override
+    public void requestLayout() {
+        super.requestLayout();
+        post(measureAndLayout);
+    }
+
+     // AdsLoader.AdViewProvider implementation.
+
+    @Override
+    public ViewGroup getAdViewGroup() {
+        return Assertions.checkNotNull(adOverlayFrameLayout, "exo_ad_overlay must be present for ad playback");
+    }
+
+    @Override
+    public View[] getAdOverlayViews() {
+        ArrayList<View> overlayViews = new ArrayList<>();
+        if (adOverlayFrameLayout != null) {
+            overlayViews.add(adOverlayFrameLayout);
+        }
+        return overlayViews.toArray(new View[0]);
     }
 
     /**

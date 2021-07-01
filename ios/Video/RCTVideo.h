@@ -5,6 +5,7 @@
 #import "RCTVideoPlayerViewControllerDelegate.h"
 #import <React/RCTComponent.h>
 #import <React/RCTBridgeModule.h>
+@import GoogleInteractiveMediaAds;
 
 #if __has_include(<react-native-video/RCTVideoCache.h>)
 #import <react-native-video/RCTVideoCache.h>
@@ -14,11 +15,11 @@
 
 @class RCTEventDispatcher;
 #if __has_include(<react-native-video/RCTVideoCache.h>)
-@interface RCTVideo : UIView <RCTVideoPlayerViewControllerDelegate, DVAssetLoaderDelegatesDelegate, AVAssetResourceLoaderDelegate>
+@interface RCTVideo : UIView <RCTVideoPlayerViewControllerDelegate, DVAssetLoaderDelegatesDelegate, AVAssetResourceLoaderDelegate, IMAAdsLoaderDelegate, IMAAdsManagerDelegate>
 #elif TARGET_OS_TV
 @interface RCTVideo : UIView <RCTVideoPlayerViewControllerDelegate, AVAssetResourceLoaderDelegate>
 #else
-@interface RCTVideo : UIView <RCTVideoPlayerViewControllerDelegate, AVPictureInPictureControllerDelegate, AVAssetResourceLoaderDelegate>
+@interface RCTVideo : UIView <RCTVideoPlayerViewControllerDelegate, AVPictureInPictureControllerDelegate, AVAssetResourceLoaderDelegate, IMAAdsLoaderDelegate, IMAAdsManagerDelegate>
 #endif
 
 @property (nonatomic, copy) RCTDirectEventBlock onVideoLoadStart;
@@ -44,6 +45,13 @@
 @property (nonatomic, copy) RCTDirectEventBlock onRestoreUserInterfaceForPictureInPictureStop;
 @property (nonatomic, copy) RCTDirectEventBlock onGetLicense;
 
+/// Playhead used by the SDK to track content video progress and insert mid-rolls.
+@property(nonatomic, strong) IMAAVPlayerContentPlayhead *contentPlayhead;
+/// Entry point for the SDK. Used to make ad requests.
+@property(nonatomic, strong) IMAAdsLoader *adsLoader;
+/// Main point of interaction with the SDK. Created by the SDK as the result of an ad request.
+@property(nonatomic, strong) IMAAdsManager *adsManager;
+
 typedef NS_ENUM(NSInteger, RCTVideoError) {
     RCTVideoErrorFromJSPart,
     RCTVideoErrorLicenseRequestNotOk,
@@ -55,7 +63,6 @@ typedef NS_ENUM(NSInteger, RCTVideoError) {
     RCTVideoErrorNoFairplayDRM,
     RCTVideoErrorNoDRMData
 };
-
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher NS_DESIGNATED_INITIALIZER;
 
 - (AVPlayerViewController*)createPlayerViewController:(AVPlayer*)player withPlayerItem:(AVPlayerItem*)playerItem;
