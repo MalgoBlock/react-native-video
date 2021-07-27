@@ -833,8 +833,15 @@ static int const RCTVideoUnset = -1;
     // When the SDK notifies us that ads have been loaded, play them.
     [adsManager start];
   }
-  if(self.onAdEvent) {
-    self.onAdEvent(@{@"target": self.reactTag, @"type": event.typeString});
+  
+  if (self.onAdEvent) {
+      NSString *type = [self typeToString:event.type];
+      NSMutableDictionary *adEventDictionary = [[NSMutableDictionary alloc] initWithDictionary:@{@"target": self.reactTag, @"type": type}];
+      if (event.ad) {
+          NSDictionary *ad = @{@"adId": event.ad.adId, @"adTitle": event.ad.adTitle, @"advertiserName": event.ad.advertiserName};
+          [adEventDictionary setObject:ad forKey:@"ad"];
+      }
+      self.onAdEvent(adEventDictionary);
   }
   if (event.type == kIMAAdEvent_LOADED && self.onAdsLoaded) {
         self.onAdsLoaded(@{@"target": self.reactTag});
@@ -846,6 +853,36 @@ static int const RCTVideoUnset = -1;
         //     _adsManager = nil;
         // }
         self.onAdsComplete(@{@"target": self.reactTag});
+    }
+}
+
+-(NSString *)typeToString:(IMAAdEventType)type {
+    switch (type) {
+        case kIMAAdEvent_AD_BREAK_READY: return @"AD_BREAK_READY";
+        case kIMAAdEvent_AD_BREAK_FETCH_ERROR: return @"AD_BREAK_FETCH_ERROR";
+        case kIMAAdEvent_AD_BREAK_ENDED: return @"AD_BREAK_ENDED";
+        case kIMAAdEvent_AD_BREAK_STARTED: return @"AD_BREAK_STARTED";
+        case kIMAAdEvent_AD_PERIOD_ENDED: return @"AD_PERIOD_ENDED";
+        case kIMAAdEvent_AD_PERIOD_STARTED: return @"AD_PERIOD_STARTED";
+        case kIMAAdEvent_ALL_ADS_COMPLETED: return @"ALL_ADS_COMPLETED";
+        case kIMAAdEvent_CLICKED: return @"CLICKED";
+        case kIMAAdEvent_COMPLETE: return @"COMPLETE";
+        case kIMAAdEvent_CUEPOINTS_CHANGED: return @"CUEPOINTS_CHANGED";
+        case kIMAAdEvent_ICON_FALLBACK_IMAGE_CLOSED: return @"ICON_FALLBACK_IMAGE_CLOSED";
+        case kIMAAdEvent_ICON_TAPPED: return @"ICON_TAPPED";
+        case kIMAAdEvent_FIRST_QUARTILE: return @"FIRST_QUARTILE";
+        case kIMAAdEvent_LOADED: return @"LOADED";
+        case kIMAAdEvent_LOG: return @"LOG";
+        case kIMAAdEvent_MIDPOINT: return @"MIDPOINT";
+        case kIMAAdEvent_PAUSE: return @"PAUSE";
+        case kIMAAdEvent_RESUME: return @"RESUME";
+        case kIMAAdEvent_SKIPPED: return @"SKIPPED";
+        case kIMAAdEvent_STARTED: return @"STARTED";
+        case kIMAAdEvent_STREAM_LOADED: return @"STREAM_LOADED";
+        case kIMAAdEvent_STREAM_STARTED: return @"STREAM_STARTED";
+        case kIMAAdEvent_TAPPED: return @"TAPPED";
+        case kIMAAdEvent_THIRD_QUARTILE: return @"THIRD_QUARTILE";
+        default: break;
     }
 }
 
