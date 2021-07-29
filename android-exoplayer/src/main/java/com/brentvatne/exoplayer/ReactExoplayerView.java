@@ -30,7 +30,6 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackParameters;
@@ -48,6 +47,7 @@ import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.metadata.Metadata;
 import com.google.android.exoplayer2.metadata.MetadataOutput;
+import com.google.android.exoplayer2.offline.Download;
 import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
 import com.google.android.exoplayer2.source.MediaSource;
@@ -74,6 +74,8 @@ import com.google.android.exoplayer2.upstream.DefaultAllocator;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
+import com.google.android.exoplayer2.upstream.cache.Cache;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
 import com.google.android.exoplayer2.util.Util;
 
 import com.google.android.exoplayer2.ext.ima.ImaAdsLoader;
@@ -92,7 +94,7 @@ import java.util.Map;
  * IMA Refactoring based on https://github.com/googleads/googleads-ima-android/blob/4dc85dd494d1aaf5e8d9a02cef7b2f58e0e6a55b/BasicExample/app/src/main/java/com/google/ads/interactivemedia/v3/samples/videoplayerapp/MyActivity.java
  */
 @SuppressLint("ViewConstructor")
-class ReactExoplayerView extends FrameLayout implements
+public class ReactExoplayerView extends FrameLayout implements
         LifecycleEventListener,
         Player.EventListener,
         BandwidthMeter.EventListener,
@@ -413,20 +415,41 @@ class ReactExoplayerView extends FrameLayout implements
         view.layout(view.getLeft(), view.getTop(), view.getMeasuredWidth(), view.getMeasuredHeight());
     }
 
+    public interface DownloadHelper {
+        public DataSource.Factory getHttpDataSourceFactory();
+        public DataSource.Factory getDataDownloadSourceFactory();
+        public Download getDownload(Uri uri);
+    }
+
+    public static DownloadHelper downloadHelper;
+
     private void initializePlayer() {
         ReactExoplayerView self = this;
         // This ensures all props have been settled, to avoid async racing conditions.
         new Handler().postDelayed(new Runnable() {
+
             @Override
             public void run() {
-                if (player == null) {
-                    DataSource.Factory dataSourceFactory =
-                            new DefaultDataSourceFactory(ReactExoplayerView.this.themedReactContext, Util.getUserAgent(ReactExoplayerView.this.themedReactContext, "ReactExoplayerView"));
+                Download download = downloadHelper.getDownload(srcUri);
+                boolean isDownloadPlaybackPossible = download != null;
 
-                    MediaSourceFactory mediaSourceFactory =
-                            new DefaultMediaSourceFactory(dataSourceFactory)
-                                    .setAdsLoaderProvider(unusedAdTagUri -> adsLoader)
-                                    .setAdViewProvider(exoPlayerView);
+                if (player == null) {
+
+                    MediaSourceFactory mediaSourceFactory;
+                    if(isDownloadPlaybackPossible){
+                        mediaSourceFactory =
+                                new DefaultMediaSourceFactory(downloadHelper.getDataDownloadSourceFactory())
+                                        .setAdsLoaderProvider(unusedAdTagUri -> adsLoader)
+                                        .setAdViewProvider(exoPlayerView);
+                    } else {
+                        DataSource.Factory dataSourceFactory =
+                                new DefaultDataSourceFactory(ReactExoplayerView.this.themedReactContext, Util.getUserAgent(ReactExoplayerView.this.themedReactContext, "ReactExoplayerView"));
+
+                        mediaSourceFactory =
+                                new DefaultMediaSourceFactory(dataSourceFactory)
+                                        .setAdsLoaderProvider(unusedAdTagUri -> adsLoader)
+                                        .setAdViewProvider(exoPlayerView);
+                    }
 
                     ExoTrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory();
                     trackSelector = new DefaultTrackSelector(videoTrackSelectionFactory);
@@ -484,8 +507,13 @@ class ReactExoplayerView extends FrameLayout implements
                     Uri contentUri = srcUri;
                     Uri adTagUri = adTagUrl;
 
-                    // TODO: We need to adjust buildMediaSource with the return type MediaItem. So DRM is not fucked.
-                    MediaItem mediaItem = new MediaItem.Builder().setUri(contentUri).setAdTagUri(adTagUri).build();
+                    MediaItem mediaItem;
+                    if(isDownloadPlaybackPossible){
+                        mediaItem = download.request.toMediaItem();
+                    } else {
+                        // TODO: We need to adjust buildMediaSource with the return type MediaItem. So DRM is not fucked.
+                        mediaItem = new MediaItem.Builder().setUri(contentUri).setAdTagUri(adTagUri).build();
+                    }
 
                     boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
                     if (haveResumePosition) {
@@ -972,7 +1000,7 @@ class ReactExoplayerView extends FrameLayout implements
         }
         // When repeat is turned on, reaching the end of the video will not cause a state change
         // so we need to explicitly detect it.
-        if (reason == Player.DISCONTINUITY_REASON_PERIOD_TRANSITION
+        if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
                 && player.getRepeatMode() == Player.REPEAT_MODE_ONE) {
             eventEmitter.end();
         }

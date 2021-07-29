@@ -17,9 +17,10 @@ import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.source.ads.AdsLoader;
+import com.google.android.exoplayer2.ui.AdOverlayInfo;
 import com.google.android.exoplayer2.video.VideoListener;
 import com.google.android.exoplayer2.Timeline;
-import com.google.android.exoplayer2.source.ads.AdsLoader;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.text.Cue;
 import com.google.android.exoplayer2.text.TextRenderer;
@@ -32,7 +33,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 @TargetApi(16)
-public final class ExoPlayerView extends FrameLayout implements AdsLoader.AdViewProvider {
+public final class ExoPlayerView extends FrameLayout implements com.google.android.exoplayer2.ui.AdViewProvider {
 
     private View surfaceView;
     private final View shutterView;
@@ -143,12 +144,12 @@ public final class ExoPlayerView extends FrameLayout implements AdsLoader.AdView
     }
 
     @Override
-    public View[] getAdOverlayViews() {
-        ArrayList<View> overlayViews = new ArrayList<>();
+    public List<AdOverlayInfo> getAdOverlayInfos() {
+        ArrayList<AdOverlayInfo> overlayViews = new ArrayList<>();
         if (adOverlayFrameLayout != null) {
-            overlayViews.add(adOverlayFrameLayout);
+            overlayViews.add(new AdOverlayInfo(adOverlayFrameLayout, AdOverlayInfo.PURPOSE_OTHER));
         }
-        return overlayViews.toArray(new View[0]);
+        return overlayViews;
     }
 
     /**
