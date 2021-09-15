@@ -8,6 +8,8 @@ import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.google.ads.interactivemedia.v3.api.Ad;
+import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.android.exoplayer2.metadata.Metadata;
 import com.google.android.exoplayer2.metadata.emsg.EventMessage;
 import com.google.android.exoplayer2.metadata.id3.Id3Frame;
@@ -47,6 +49,7 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_BECOMING_NOISY = "onVideoAudioBecomingNoisy";
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
+    private static final String EVENT_AD = "onAdEvent";
 
     static final String[] Events = {
             EVENT_LOAD_START,
@@ -69,6 +72,7 @@ class VideoEventEmitter {
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
             EVENT_BANDWIDTH,
+            EVENT_AD
     };
 
     @Retention(RetentionPolicy.SOURCE)
@@ -93,6 +97,7 @@ class VideoEventEmitter {
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
             EVENT_BANDWIDTH,
+            EVENT_AD
     })
     @interface VideoEvents {
     }
@@ -292,6 +297,56 @@ class VideoEventEmitter {
         WritableMap map = Arguments.createMap();
         map.putBoolean(EVENT_PROP_HAS_AUDIO_FOCUS, hasFocus);
         receiveEvent(EVENT_AUDIO_FOCUS_CHANGE, map);
+    }
+
+    void adEvent(AdEvent adEvent){
+        String type = adEventTypeToString(adEvent.getType());
+        WritableMap adParams = Arguments.createMap();
+
+        Ad ad = adEvent.getAd();
+        if(ad != null){
+            adParams.putString("adId", ad.getAdId());
+            adParams.putString("adTitle", ad.getTitle());
+            adParams.putString("advertiserName", ad.getAdvertiserName());
+        }
+
+        WritableMap params = Arguments.createMap();
+        params.putString("type", type);
+        params.putMap("ad", adParams);
+        receiveEvent(EVENT_AD, params);
+    }
+
+    private static String adEventTypeToString(AdEvent.AdEventType adEventType){
+        switch (adEventType){
+            case ALL_ADS_COMPLETED: return "ALL_ADS_COMPLETED";
+            case AD_BREAK_FETCH_ERROR: return "AD_BREAK_FETCH_ERROR";
+            case COMPLETED: return "COMPLETED";
+            case CLICKED: return "CLICKED";
+            case CUEPOINTS_CHANGED: return "CUEPOINTS_CHANGED";
+            case CONTENT_PAUSE_REQUESTED: return "CONTENT_PAUSE_REQUESTED";
+            case CONTENT_RESUME_REQUESTED: return "CONTENT_RESUME_REQUESTED";
+            case FIRST_QUARTILE: return "FIRST_QUARTILE";
+            case LOG: return "LOG";
+            case AD_BREAK_READY: return "AD_BREAK_READY";
+            case MIDPOINT: return "MIDPOINT";
+            case PAUSED: return "PAUSED";
+            case RESUMED: return "RESUMED";
+            case SKIPPABLE_STATE_CHANGED: return "SKIPPABLE_STATE_CHANGED";
+            case SKIPPED: return "SKIPPED";
+            case STARTED: return "STARTED";
+            case TAPPED: return "TAPPED";
+            case ICON_TAPPED: return "ICON_TAPPED";
+            case ICON_FALLBACK_IMAGE_CLOSED: return "ICON_FALLBACK_IMAGE_CLOSED";
+            case THIRD_QUARTILE: return "THIRD_QUARTILE";
+            case LOADED: return "LOADED";
+            case AD_PROGRESS: return "AD_PROGRESS";
+            case AD_BUFFERING: return "AD_BUFFERING";
+            case AD_BREAK_STARTED: return "AD_BREAK_STARTED";
+            case AD_BREAK_ENDED: return "AD_BREAK_ENDED";
+            case AD_PERIOD_STARTED: return "AD_PERIOD_STARTED";
+            case AD_PERIOD_ENDED: return "AD_PERIOD_ENDED";
+            default: return "UNKNOWN";
+        }
     }
 
     void audioBecomingNoisy() {

@@ -25,7 +25,11 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.google.ads.interactivemedia.v3.api.Ad;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
+import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
@@ -1140,8 +1144,16 @@ public class ReactExoplayerView extends FrameLayout implements
     public void setAdTagUrl(final Uri uri) {
         adTagUrl = uri;
 
-        adsLoader = new ImaAdsLoader.Builder(/* context= */ this.themedReactContext).build();
-        // adsLoader = new ImaAdsLoader(this.themedReactContext, adTagUrl);
+        ImaAdsLoader.Builder builder = new ImaAdsLoader.Builder(/* context= */ this.themedReactContext);
+        builder.setAdEventListener(new AdEvent.AdEventListener() {
+            @Override
+            public void onAdEvent(AdEvent adEvent) {
+                Log.d(TAG, "onAdEvent: " + adEvent);
+                eventEmitter.adEvent(adEvent);
+            }
+        });
+
+        adsLoader = builder.build();
     }
 
     public void setRawSrc(final Uri uri, final String extension) {
