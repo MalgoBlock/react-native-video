@@ -9,6 +9,8 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.google.ads.interactivemedia.v3.api.Ad;
+import com.google.ads.interactivemedia.v3.api.AdError;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
 import com.google.ads.interactivemedia.v3.api.AdEvent;
 import com.google.android.exoplayer2.metadata.Metadata;
 import com.google.android.exoplayer2.metadata.emsg.EventMessage;
@@ -50,6 +52,8 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
     private static final String EVENT_AD = "onAdEvent";
+    private static final String EVENT_AD_ERROR = "onAdError";
+
 
     static final String[] Events = {
             EVENT_LOAD_START,
@@ -97,7 +101,8 @@ class VideoEventEmitter {
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
             EVENT_BANDWIDTH,
-            EVENT_AD
+            EVENT_AD,
+            EVENT_AD_ERROR
     })
     @interface VideoEvents {
     }
@@ -297,6 +302,18 @@ class VideoEventEmitter {
         WritableMap map = Arguments.createMap();
         map.putBoolean(EVENT_PROP_HAS_AUDIO_FOCUS, hasFocus);
         receiveEvent(EVENT_AUDIO_FOCUS_CHANGE, map);
+    }
+
+    void adAdErrorEvent(AdErrorEvent adErrorEvent){
+        WritableMap params = Arguments.createMap();
+
+        AdError adError = adErrorEvent.getError();
+        if(adError != null){
+            params.putString("message", adError.getMessage());
+            params.putString("code", "" + adError.getErrorCodeNumber());
+        }
+
+        receiveEvent(EVENT_AD_ERROR, params);
     }
 
     void adEvent(AdEvent adEvent){

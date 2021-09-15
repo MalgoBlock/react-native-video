@@ -1153,6 +1153,14 @@ public class ReactExoplayerView extends FrameLayout implements
             }
         });
 
+        builder.setAdErrorListener(new AdErrorEvent.AdErrorListener() {
+            @Override
+            public void onAdError(AdErrorEvent adErrorEvent) {
+                Log.d(TAG, "onAdError: " + adErrorEvent);
+                eventEmitter.adAdErrorEvent(adErrorEvent);
+            }
+        });
+
         adsLoader = builder.build();
     }
 
