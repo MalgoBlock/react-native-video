@@ -52,6 +52,7 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
     private static final String EVENT_AD = "onAdEvent";
+    private static final String EVENT_AD_CONTROL = "onAdInControl";
     private static final String EVENT_AD_ERROR = "onAdError";
 
 
@@ -76,7 +77,9 @@ class VideoEventEmitter {
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
             EVENT_BANDWIDTH,
-            EVENT_AD
+            EVENT_AD,
+            EVENT_AD_CONTROL,
+            EVENT_AD_ERROR,
     };
 
     @Retention(RetentionPolicy.SOURCE)
@@ -102,7 +105,8 @@ class VideoEventEmitter {
             EVENT_PLAYBACK_RATE_CHANGE,
             EVENT_BANDWIDTH,
             EVENT_AD,
-            EVENT_AD_ERROR
+            EVENT_AD_ERROR,
+            EVENT_AD_CONTROL
     })
     @interface VideoEvents {
     }
@@ -331,6 +335,12 @@ class VideoEventEmitter {
         params.putString("type", type);
         params.putMap("ad", adParams);
         receiveEvent(EVENT_AD, params);
+    }
+
+    void adEventInControl(Boolean inControl){
+        WritableMap params = Arguments.createMap();
+        params.putBoolean("inControl", inControl);
+        receiveEvent(EVENT_AD_CONTROL, params);
     }
 
     private static String adEventTypeToString(AdEvent.AdEventType adEventType){
