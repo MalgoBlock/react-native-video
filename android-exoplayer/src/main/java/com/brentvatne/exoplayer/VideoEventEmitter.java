@@ -154,7 +154,7 @@ class VideoEventEmitter {
     }
 
     void load(double duration, double currentPosition, int videoWidth, int videoHeight,
-              WritableArray audioTracks, WritableArray textTracks, WritableArray videoTracks, String trackId) {
+              WritableArray audioTracks, WritableArray textTracks, WritableArray videoTracks, String trackId, boolean playingAd) {
         WritableMap event = Arguments.createMap();
         event.putDouble(EVENT_PROP_DURATION, duration / 1000D);
         event.putDouble(EVENT_PROP_CURRENT_TIME, currentPosition / 1000D);
@@ -182,7 +182,7 @@ class VideoEventEmitter {
         event.putBoolean(EVENT_PROP_STEP_BACKWARD, true);
         event.putBoolean(EVENT_PROP_STEP_FORWARD, true);
 
-        receiveEvent(EVENT_LOAD, event);
+        receiveEvent(EVENT_LOAD, event, playingAd);
     }
 
     void progressChanged(double currentPosition, double bufferedDuration, double seekableDuration, double currentPlaybackTime) {
@@ -380,7 +380,15 @@ class VideoEventEmitter {
         receiveEvent(EVENT_AUDIO_BECOMING_NOISY, null);
     }
 
+    private void receiveEvent(@VideoEvents String type, WritableMap event, Boolean playingAd) {
+        if(playingAd){
+            // TODO: In case of playingAd, adjust to iOS behaviour.
+        } else {
+            eventEmitter.receiveEvent(viewId, type, event);
+        }
+    }
+
     private void receiveEvent(@VideoEvents String type, WritableMap event) {
-        eventEmitter.receiveEvent(viewId, type, event);
+        receiveEvent(type, event, false);
     }
 }

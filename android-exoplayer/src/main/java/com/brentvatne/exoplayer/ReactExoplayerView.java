@@ -96,6 +96,9 @@ import java.util.Map;
 
 /**
  * IMA Refactoring based on https://github.com/googleads/googleads-ima-android/blob/4dc85dd494d1aaf5e8d9a02cef7b2f58e0e6a55b/BasicExample/app/src/main/java/com/google/ads/interactivemedia/v3/samples/videoplayerapp/MyActivity.java
+ *
+ * TODO:
+ * - Pass isPlayingAd() to the eventEmitter events. Then handle them the same way as iOS in case of ads. (https://github.com/simpleTechs/react-native-video/tree/master/ios)
  */
 @SuppressLint("ViewConstructor")
 public class ReactExoplayerView extends FrameLayout implements
@@ -895,7 +898,7 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private void videoLoaded() {
         // For Netzkino we get  player.getContentDuration(): -9223372036854775807 with the first events because of ads.
-        if (loadVideoStarted && !player.isPlayingAd()) {
+        if (loadVideoStarted) {
             loadVideoStarted = false;
             setSelectedAudioTrack(audioTrackType, audioTrackValue);
             setSelectedVideoTrack(videoTrackType, videoTrackValue);
@@ -905,7 +908,7 @@ public class ReactExoplayerView extends FrameLayout implements
             int height = videoFormat != null ? videoFormat.height : 0;
             String trackId = videoFormat != null ? videoFormat.id : "-1";
             eventEmitter.load(player.getContentDuration(), player.getCurrentPosition(), width, height,
-                    getAudioTrackInfo(), getTextTrackInfo(), getVideoTrackInfo(), trackId);
+                    getAudioTrackInfo(), getTextTrackInfo(), getVideoTrackInfo(), trackId, player.isPlayingAd());
         }
     }
 
