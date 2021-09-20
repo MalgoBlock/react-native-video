@@ -897,7 +897,6 @@ public class ReactExoplayerView extends FrameLayout implements
     }
 
     private void videoLoaded() {
-        // For Netzkino we get  player.getContentDuration(): -9223372036854775807 with the first events because of ads.
         if (loadVideoStarted) {
             loadVideoStarted = false;
             setSelectedAudioTrack(audioTrackType, audioTrackValue);

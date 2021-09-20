@@ -383,6 +383,7 @@ class VideoEventEmitter {
     private void receiveEvent(@VideoEvents String type, WritableMap event, Boolean playingAd) {
         if(playingAd){
             // TODO: In case of playingAd, adjust to iOS behaviour.
+            // Currently this is only used for fixing the issue of getting player.getContentDuration(): -9223372036854775807 with the first events with Netzkino flavour.
         } else {
             eventEmitter.receiveEvent(viewId, type, event);
         }
