@@ -847,6 +847,9 @@ static int const RCTVideoUnset = -1;
         self.onAdsLoaded(@{@"target": self.reactTag});
     } else if (event.type == kIMAAdEvent_STARTED && self.onAdStarted) {
         self.onAdStarted(@{@"target": self.reactTag});
+    } else if (event.type == kIMAAdEvent_TAPPED) {
+      // sometimes ads do not resume after closing WebView, resume playing on tap
+        [adsManager resume];
     } else if (event.type == kIMAAdEvent_ALL_ADS_COMPLETED && self.onAdsComplete) {
         // if (_adsManager) {
         //     [_adsManager destroy];
